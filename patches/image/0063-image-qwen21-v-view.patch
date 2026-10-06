@@ -73,7 +73,7 @@ index 5747d62..da93480 100644
  
  ggml_tensor* ggml_ext_group_norm(ggml_context* ctx,
 diff --git a/src/core/ggml_runner.cpp b/src/core/ggml_runner.cpp
-index 4c156ed..89d519f 100644
+index 97175e9..aa4885d 100644
 --- a/src/core/ggml_runner.cpp
 +++ b/src/core/ggml_runner.cpp
 @@ -17,21 +17,22 @@ ggml_tensor* ggml_ext_attention_ext(GGMLRunnerContext* ctx,
@@ -102,10 +102,10 @@ index 4c156ed..89d519f 100644
      params.no_alloc   = true;
  
 diff --git a/src/core/ggml_runner.h b/src/core/ggml_runner.h
-index 02630c0..b008b65 100644
+index be36463..123b0f6 100644
 --- a/src/core/ggml_runner.h
 +++ b/src/core/ggml_runner.h
-@@ -128,17 +128,18 @@ ggml_tensor* ggml_ext_attention_ext(GGMLRunnerContext* ctx,
+@@ -129,17 +129,18 @@ ggml_tensor* ggml_ext_attention_ext(GGMLRunnerContext* ctx,
                                      ggml_tensor* q,
                                      ggml_tensor* k,
                                      ggml_tensor* v,
@@ -124,7 +124,7 @@ index 02630c0..b008b65 100644
      size_t logged_segment_count_     = 0;
      ggml_status last_compute_status_ = GGML_STATUS_SUCCESS;
  
-     sd::ComputeWorkspace::Measurement measure(ggml_cgraph* graph, size_t direct_bytes);
+     // Layer split placement and workspace measurements only depend on the graph
 diff --git a/src/model/diffusion/qwen_image_2_1.hpp b/src/model/diffusion/qwen_image_2_1.hpp
 index 7b43833..6ee289e 100644
 --- a/src/model/diffusion/qwen_image_2_1.hpp

@@ -6,7 +6,7 @@ Patches against the pinned upstream commits, one directory per engine:
 llama/          llama.cpp, seven patches that rebuild the ported tree
 shared-metal/   the Metal backend for whisper.cpp and stable-diffusion.cpp
 whisper/        whisper.cpp, outside the Metal backend
-image/          stable-diffusion.cpp, outside the Metal backend
+image/          stable-diffusion.cpp (the fork's tosh branch), outside the Metal backend
 ```
 
 `scripts/build-engines.sh` discovers them per engine and applies them in **numeric order of the
@@ -35,6 +35,22 @@ check below verifies.
 
 The seven replaced the old per-area folders (`llama/metal/`, `llama/core/`, `llama/model/`,
 `llama/server/`) at the port; the running numbering they used did not go away.
+
+## Where the image engine comes from
+
+`scripts/build-engines.sh` clones stable-diffusion.cpp from the `aerofred` fork and checks out a
+commit of its `tosh` branch. That branch is upstream `2f88688` plus the net change of the fork's
+`claude` branch over upstream master (layer split placement, parallel CFG, LTX and MiniMax-H3 token
+ranges, the LTX2 sigma fix), with its ggml left at `4bf5f60`: the `shared-metal/` series and
+`image/0002` target that ggml's monolithic `ggml-metal.metal`, and the fork's `claude` branch
+already follows a ggml that split it into `kernels/`.
+
+So the fork's work is not carried as patches here; it is part of the base. To bring new fork work
+in: rebase or cherry-pick it onto `tosh` without moving the `ggml` submodule, push, apply the
+`image/` series on the result (`0049` and `0063` touch `model_manager.*` and `ggml_runner.h`, the
+files the fork changes most, and are the ones to regenerate when they stop landing), then move
+`SD_COMMIT`. Moving `tosh` onto a newer upstream means porting the Metal series to the newer ggml
+first.
 
 ## `shared-metal/`
 

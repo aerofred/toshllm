@@ -13,7 +13,11 @@ ROOT="$PWD"
 
 LLAMA_COMMIT="${LLAMA_COMMIT:-9575389609d6f8437de0b205561a4824d217c409}"   # llama.cpp commit validated against the patches
 WHISPER_COMMIT="${WHISPER_COMMIT:-371b5a7561823ab2bb32142d2751e35e7534727b}" # whisper.cpp v1.9.3
-SD_COMMIT="${SD_COMMIT:-2f88688}"         # stable-diffusion.cpp commit validated for image gen
+# stable-diffusion.cpp comes from the aerofred fork: its tosh branch is upstream 2f88688 plus the
+# performance work of the fork's claude branch, kept on ggml 4bf5f60 because the Metal series below
+# targets that ggml. New fork work lands there first, then this commit moves (see patches/README.md).
+SD_REPO="${SD_REPO:-https://github.com/aerofred/stable-diffusion.cpp}"
+SD_COMMIT="${SD_COMMIT:-9d82529b1d65c047d04bdf40b37f1f3d2fd26bd6}"  # tosh branch head
 ARCH="${ARCH:-$(uname -m)}"
 DEPLOYMENT_TARGET="14.0"        # same floor as the app (Package.swift)
 if [ "$ARCH" = "universal" ]; then
@@ -273,9 +277,11 @@ build_image_engine() {
     # on a stalled transfer instead of hanging.
     if [ ! -d "$vendor/.git" ]; then
         retry_git env GIT_HTTP_LOW_SPEED_LIMIT=2000 GIT_HTTP_LOW_SPEED_TIME=30 \
-            git clone https://github.com/leejet/stable-diffusion.cpp "$vendor"
+            git clone "$SD_REPO" "$vendor"
     fi
     cd "$vendor"
+    # a clone made before the move to the fork still points at leejet, where the tosh commits are not
+    git remote set-url origin "$SD_REPO"
     retry_git git fetch origin
     # the previous build left the patches in both working trees; a bump that moves the
     # submodule cannot check the new commit out over them, so revert before switching

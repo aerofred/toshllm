@@ -1,8 +1,8 @@
 diff --git a/src/model_manager.cpp b/src/model_manager.cpp
-index 9529d6f..ca3fa9d 100644
+index c1d7301..e4d0383 100644
 --- a/src/model_manager.cpp
 +++ b/src/model_manager.cpp
-@@ -1205,40 +1205,42 @@ void ModelManager::free_params_storage_block(ParamsStorageBlock& block) {
+@@ -1330,40 +1330,42 @@ void ModelManager::free_params_storage_block(ParamsStorageBlock& block) {
  
          state->loaded_to_params_backend = false;
          state->applied_lora_epoch       = UINT64_MAX;
@@ -48,7 +48,7 @@ index 9529d6f..ca3fa9d 100644
                  auto& stats = released[ggml_backend_buffer_get_type(block->buffer)];
                  stats.bytes += ggml_backend_buffer_get_size(block->buffer);
                  stats.tensors += block->states.size();
-@@ -1577,16 +1579,30 @@ void ModelManager::finish_compute_backend_usage(const std::vector<TensorState*>&
+@@ -1717,16 +1719,31 @@ void ModelManager::finish_compute_backend_usage(const std::vector<TensorState*>&
              continue;
          }
          if (state->pin_count > 0) {
@@ -58,6 +58,7 @@ index 9529d6f..ca3fa9d 100644
  }
  
 +void ModelManager::unload_component(ModelComponent component) {
++    std::lock_guard<std::recursive_mutex> lock(mutex_);
 +    std::unordered_set<TensorState*> target_states;
 +    for (const auto& state : tensor_states_) {
 +        if (state != nullptr && state->component == component) {
@@ -72,18 +73,18 @@ index 9529d6f..ca3fa9d 100644
 +}
 +
  void ModelManager::release_compute_backend_params(const std::vector<ggml_tensor*>& tensors) {
+     std::lock_guard<std::recursive_mutex> lock(mutex_);
      if (tensors.empty()) {
          return;
      }
      std::vector<TensorState*> required_states;
      if (!resolve_required_tensor_states(tensors, required_states)) {
          return;
-     }
 diff --git a/src/model_manager.h b/src/model_manager.h
-index 643fc07..b6a46ce 100644
+index 386c6c0..63946c4 100644
 --- a/src/model_manager.h
 +++ b/src/model_manager.h
-@@ -161,17 +161,18 @@ private:
+@@ -181,17 +181,18 @@ private:
                                   const std::vector<TensorState*>& states,
                                   bool log_details = false) const;
  
@@ -103,9 +104,9 @@ index 643fc07..b6a46ce 100644
      size_t other_runtime_resident_bytes(uintptr_t owner_id,
                                          ggml_backend_t compute_backend) const;
  
-@@ -272,16 +273,20 @@ public:
+@@ -292,16 +293,20 @@ public:
      bool prepare_params(const std::vector<ggml_tensor*>& tensors) override;
-     void set_workspace_reclaimer(uintptr_t owner_id, std::function<bool()> reclaim) override;
+     void set_workspace_reclaimer(uintptr_t owner_id, std::function<bool(ggml_backend_t)> reclaim) override;
      void remove_runtime_owner(uintptr_t owner_id) override;
      bool fits_compute_backend_capacity(const DeviceMemoryRequest& request,
                                         const std::vector<ggml_tensor*>& required_params) const override;
@@ -125,10 +126,10 @@ index 643fc07..b6a46ce 100644
      bool ensure_compute_backend_capacity(
          const DeviceMemoryRequest& request,
 diff --git a/src/pipeline/diffusion_engine.cpp b/src/pipeline/diffusion_engine.cpp
-index aacbec9..fe9c90e 100644
+index 4f92f43..bbe1dc9 100644
 --- a/src/pipeline/diffusion_engine.cpp
 +++ b/src/pipeline/diffusion_engine.cpp
-@@ -214,16 +214,33 @@ void StableDiffusionGGML::end_runners() {
+@@ -217,16 +217,33 @@ void StableDiffusionGGML::end_runners() {
          control_net->runner_end();
      for (auto& extension : generation_extensions)
          extension->runner_end();
@@ -163,10 +164,10 @@ index aacbec9..fe9c90e 100644
      for (auto group : groups) {
          for (auto component : runner_components().at(group)) {
 diff --git a/src/pipeline/diffusion_engine.h b/src/pipeline/diffusion_engine.h
-index d1a8866..2061479 100644
+index dba40b9..545f175 100644
 --- a/src/pipeline/diffusion_engine.h
 +++ b/src/pipeline/diffusion_engine.h
-@@ -104,16 +104,19 @@ public:
+@@ -108,16 +108,19 @@ public:
  
      bool diffusion_conv_direct = false;
  
@@ -212,10 +213,10 @@ index 951e8dc..fee2f61 100644
          sd->lora_stat();
  
 diff --git a/src/pipeline/video.cpp b/src/pipeline/video.cpp
-index 2fcff4c..3c0d58a 100644
+index 43573a6..24571d0 100644
 --- a/src/pipeline/video.cpp
 +++ b/src/pipeline/video.cpp
-@@ -1850,16 +1850,20 @@ namespace sd::pipeline {
+@@ -1880,16 +1880,20 @@ namespace sd::pipeline {
              }
              LOG_INFO("sampling(latent upscale) completed, taking %.2fs",
                       (sampling_end - sampling_start) * 1.0f / 1000);
